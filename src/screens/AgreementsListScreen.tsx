@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import ScreenContainer from '../components/Common/ScreenContainer';
 import PrimaryButton from '../components/Common/PrimaryButton';
 import EmptyState from '../components/EmptyState';
@@ -33,6 +34,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AgreementsList'>;
 // Главный экран списка договорённостей: показывает карточки, обрабатывает состояния загрузки/ошибок/пустого списка
 const AgreementsListScreen: React.FC<Props> = ({ navigation }) => {
   const { agreements, loading, error, reload } = useAgreements();
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
 
   const sortedAgreements = useMemo(() => sortAgreements(agreements), [agreements]);
 
