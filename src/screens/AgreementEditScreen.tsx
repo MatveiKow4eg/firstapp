@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+ import React, { useEffect, useMemo, useState } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   KeyboardAvoidingView,
@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import ScreenContainer from '../components/Common/ScreenContainer';
 import PrimaryButton from '../components/Common/PrimaryButton';
@@ -44,7 +45,17 @@ const AgreementEditScreen: React.FC<Props> = ({ navigation, route }) => {
     Partial<Record<'direction' | 'personName' | 'description', string>>
   >({});
 
-  const isEditMode = Boolean(editingAgreement);
+  const isEditMode = Boolean(editingId);
+
+  // Когда запись загрузилась (при редактировании), подставляем значения в форму
+  useEffect(() => {
+    if (isEditMode && editingAgreement) {
+      setDirection(editingAgreement.direction);
+      setPersonName(editingAgreement.personName);
+      setDescription(editingAgreement.description);
+      setDueAt(editingAgreement.dueAt ?? '');
+    }
+  }, [isEditMode, editingAgreement]);
 
   const handleSave = async () => {
     const validation = validateAgreementForm({ direction, personName, description });
@@ -101,6 +112,17 @@ const AgreementEditScreen: React.FC<Props> = ({ navigation, route }) => {
       </Pressable>
     );
   };
+
+  // Если открыли экран редактирования, но запись ещё не подгрузилась — показываем индикатор
+  if (isEditMode && !editingAgreement) {
+    return (
+      <ScreenContainer>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer>
