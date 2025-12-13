@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View, Pressable } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View, Pressable, Platform } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import ScreenContainer from '../components/Common/ScreenContainer';
@@ -35,12 +35,14 @@ function sortAgreements(list: Agreement[]): Agreement[] {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AgreementsList'>;
 
-// Главный экран списка договорённостей: показывает карточки, обрабатывает состояния загрузки/ошибок/пустого списка
+// Главный экран списка договорённостей с современным дизайном
 const AgreementsListScreen: React.FC<Props> = ({ navigation }) => {
-  const { agreements, loading, error, reload, setStatus } = useAgreements();
+  const { agreements, loading, error, reload, setStatus, deleteAgreement } = useAgreements();
   // Таймер для автообновления статусов (раз в минуту)
   const [tick, setTick] = React.useState(0);
   const [filter, setFilter] = React.useState<'ALL' | 'I_PROMISED' | 'PROMISED_TO_ME'>('ALL');
+  const [selectionMode, setSelectionMode] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   React.useEffect(() => {
     const id = setInterval(() => {
       setTick((t) => t + 1);
@@ -69,7 +71,11 @@ const AgreementsListScreen: React.FC<Props> = ({ navigation }) => {
     return (
       <Pressable
         onPress={() => setFilter(value)}
-        style={[styles.filterOption, selected && styles.filterOptionSelected]}
+        style={({ pressed }) => [
+          styles.filterOption,
+          selected && styles.filterOptionSelected,
+          pressed && styles.filterOptionPressed,
+        ]}
       >
         <Text style={[styles.filterOptionText, selected && styles.filterOptionTextSelected]}>
           {label}
@@ -85,105 +91,256 @@ const AgreementsListScreen: React.FC<Props> = ({ navigation }) => {
     setStatus(id, nextStatus);
   }, [agreements, setStatus]);
 
+  const handleDelete = useCallback((id: string) => {
+    // Свайп влево — удаляем без подтверждения (явное намерение пользователя)
+    deleteAgreement(id);
+  }, [deleteAgreement]);
+
+  const enterSelection = useCallback((id?: string) => {
+    setSelectionMode(true);
+    if (id) setSelectedIds((prev) => Array.from(new Set([...prev, id])));
+  }, []);
+
+  const exitSelection = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds([]);
+  }, []);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(sortedAgreements.map((a) => a.id));
+  }, [sortedAgreements]);
+
+  const deleteSelected = useCallback(async () => {
+    if (selectedIds.length === 0) return;
+    for (const id of selectedIds) {
+      // последовательное удаление для простоты
+      // eslint-disable-next-line no-await-in-loop
+      await deleteAgreement(id);
+    }
+    exitSelection();
+  }, [selectedIds, deleteAgreement, exitSelection]);
+
   return (
     <ScreenContainer>
-      <View style={styles.filterRow}>
-        {renderFilterOption('ALL', strings.list.filters.all)}
-        {renderFilterOption('PROMISED_TO_ME', strings.list.filters.promisedToMe)}
-        {renderFilterOption('I_PROMISED', strings.list.filters.iPromised)}
-      </View>
-      {loading && (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-        </View>
-      )}
-
-      {!loading && error && (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{strings.list.error}</Text>
-          <PrimaryButton title={strings.list.retry} onPress={reload} style={styles.retryButton} />
-        </View>
-      )}
-
-      {!loading && !error && sortedAgreements.length === 0 && (
-        <EmptyState message={filter === 'ALL' ? strings.list.emptyAll : strings.list.emptyFiltered} />
-      )}
-
-      {!loading && !error && sortedAgreements.length > 0 && (
-        <FlatList
-          data={sortedAgreements}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <AgreementCard
-              agreement={item}
-              onPress={() => navigation.navigate('AgreementEdit', { id: item.id })}
-              onLongPressToggleDone={handleToggleDone}
-            />
+      {/* ВЕРХНЯЯ ЗОНА: заголовок + фильтры (не участвуют в центрировании) */}
+      <View style={styles.headerZone}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Мои договорённости</Text>
+          {!selectionMode ? (
+            <Text style={styles.subtitle}>
+              {sortedAgreements.length} {sortedAgreements.length === 1 ? 'договорённость' : 'договорённостей'}
+            </Text>
+          ) : (
+            <View style={styles.selectionToolbar}>
+              <Text style={styles.selectionCount}>{strings.list.selection.selectedCount(selectedIds.length)}</Text>
+              <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
+                <PrimaryButton title={strings.list.selection.selectAll} onPress={selectAll} variant="secondary" />
+                <PrimaryButton title={strings.list.selection.delete} onPress={deleteSelected} variant="danger" disabled={selectedIds.length === 0} />
+              </View>
+            </View>
           )}
-          contentContainerStyle={styles.listContent}
-        />
-      )}
+        </View>
 
-      {/* Нижняя панель действия: одна основная кнопка добавления */}
-      <View style={styles.bottomBar}>
-        <PrimaryButton title={strings.list.add} onPress={handleAdd} style={styles.bottomBarButton} />
+        {!selectionMode && (
+          <View style={styles.filterRow}>
+            {renderFilterOption('ALL', strings.list.filters.all)}
+            {renderFilterOption('PROMISED_TO_ME', strings.list.filters.promisedToMe)}
+            {renderFilterOption('I_PROMISED', strings.list.filters.iPromised)}
+          </View>
+        )}
       </View>
+
+      {/* НИЖНЯЯ ЗОНА: контент (список / empty-state / ошибка / загрузка) */}
+      <View style={styles.contentZone}>
+        {loading && (
+          <View style={styles.centerContent}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+        )}
+
+        {!loading && error && (
+          <View style={styles.centerContent}>
+            <Text style={styles.errorText}>{strings.list.error}</Text>
+            <PrimaryButton title={strings.list.retry} onPress={reload} style={styles.retryButton} />
+          </View>
+        )}
+
+        {!loading && !error && sortedAgreements.length === 0 && (
+          <View style={styles.emptyStateWrapper}>
+            <EmptyState
+              title={strings.list.emptyTitle}
+              description={filter === 'ALL' ? strings.list.emptyDescription : strings.list.emptyFiltered}
+              actionLabel={strings.list.emptyAction}
+              onActionPress={handleAdd}
+            />
+          </View>
+        )}
+
+        {!loading && !error && sortedAgreements.length > 0 && (
+          <FlatList
+            data={sortedAgreements}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => {
+              const inSelection = selectionMode;
+              const selected = selectedIds.includes(item.id);
+              const onPressItem = () => {
+                if (inSelection) {
+                  toggleSelect(item.id);
+                } else {
+                  navigation.navigate('AgreementEdit', { id: item.id });
+                }
+              };
+              return (
+                <AgreementCard
+                  agreement={item}
+                  onPress={onPressItem}
+                  onLongPress={() => enterSelection(item.id)}
+                  onToggleDone={handleToggleDone}
+                  onDelete={handleDelete}
+                  disabledGestures={inSelection}
+                  selected={selected}
+                />
+              );
+            }}
+            contentContainerStyle={styles.listContent}
+            scrollIndicatorInsets={{ right: 1 }}
+            scrollEnabled={sortedAgreements.length > 0}
+          />
+        )}
+      </View>
+
+      {/* Нижняя панель действия: скрываем в пустом состоянии */}
+      {!loading && !error && sortedAgreements.length > 0 && (
+        <View style={styles.bottomBar}>
+          <View style={styles.bottomBarContent}>
+            {!selectionMode ? (
+              <PrimaryButton 
+                title={`+ ${strings.list.add}`} 
+                onPress={handleAdd} 
+                style={styles.bottomBarButton} 
+              />
+            ) : (
+              <PrimaryButton 
+                title={strings.list.selection.delete}
+                onPress={deleteSelected}
+                style={styles.bottomBarButton}
+                variant="danger"
+                disabled={selectedIds.length === 0}
+              />
+            )}
+          </View>
+        </View>
+      )}
     </ScreenContainer>
   );
 };
 
 const styles = StyleSheet.create({
-  listContent: {
-    paddingBottom: 140, // дополнительный отступ под нижнюю панель
+  headerZone: {
+    // Верхняя зона: заголовок + фильтры, не участвуют в центрировании
+    // Не используем flex, чтобы зона занимала только необходимое место
   },
-  center: {
+  header: {
+    marginBottom: theme.spacing.xl,
+    paddingTop: theme.spacing.md,
+  },
+  title: {
+    fontSize: theme.fontSize.xxl,
+    fontWeight: '800',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  subtitle: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  selectionToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.md,
+  },
+  selectionCount: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    fontWeight: '700',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.cardBackground,
+    overflow: 'hidden',
+    marginBottom: theme.spacing.lg,
+    ...theme.shadows.sm,
+  },
+  filterOption: {
+    flex: 1,
+    paddingVertical: theme.spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.cardBackground,
+  },
+  filterOptionSelected: {
+    backgroundColor: theme.colors.primary,
+  },
+  filterOptionPressed: {
+    opacity: 0.8,
+  },
+  filterOptionText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+  },
+  filterOptionTextSelected: {
+    color: '#FFFFFF',
+  },
+  contentZone: {
+    // Нижняя зона: занимает всё оставшееся пространство
+    flex: 1,
+  },
+  centerContent: {
+    // Для загрузки и ошибок: центрирование внутри contentZone
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+  },
+  emptyStateWrapper: {
+    // Обёртка для empty-state: занимает всё пространство contentZone и центрирует содержимое
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
   },
   errorText: {
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.md,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    overflow: 'hidden',
-    marginBottom: theme.spacing.md,
-  },
-  filterOption: {
-    flex: 1,
-    paddingVertical: theme.spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  filterOptionSelected: {
-    backgroundColor: theme.colors.cardBackground,
-  },
-  filterOptionText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
-  },
-  filterOptionTextSelected: {
-    color: theme.colors.text,
-    fontWeight: '600',
+    fontSize: theme.fontSize.lg,
   },
   retryButton: {
     minWidth: 160,
+  },
+  listContent: {
+    paddingBottom: 140, // дополнительный отступ под нижнюю панель
   },
   bottomBar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingHorizontal: Platform.OS === 'ios' ? theme.spacing.md : theme.spacing.lg,
+    paddingVertical: Platform.OS === 'ios' ? theme.spacing.md : theme.spacing.lg,
     backgroundColor: theme.colors.background,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
+  },
+  bottomBarContent: {
+    // Пусто, но оставляю для совместимости
   },
   bottomBarButton: {
     width: '100%',

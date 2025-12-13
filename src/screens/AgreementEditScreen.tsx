@@ -22,9 +22,9 @@ import { validateAgreementForm } from '../utils/validation';
 import { getComputedStatus } from '../utils/status';
 import { strings } from '../utils/strings';
 
-// Экран формы создания/редактирования договорённости.
+// Экран формы создания/редактирования договорённости с современным дизайном.
 // В режиме создания поля пустые, статус всегда pending.
-// В режиме редактирования поля заполняются суще��твующими данными.
+// В режиме редактирования поля заполняются существующими данными.
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AgreementEdit'>;
 
@@ -160,7 +160,11 @@ const AgreementEditScreen: React.FC<Props> = ({ navigation, route }) => {
     return (
       <Pressable
         onPress={() => setDirection(value)}
-        style={[styles.directionOption, selected && styles.directionOptionSelected]}
+        style={({ pressed }) => [
+          styles.directionOption,
+          selected && styles.directionOptionSelected,
+          pressed && styles.directionOptionPressed,
+        ]}
       >
         <Text style={[styles.directionOptionText, selected && styles.directionOptionTextSelected]}>
           {label}
@@ -181,11 +185,11 @@ const AgreementEditScreen: React.FC<Props> = ({ navigation, route }) => {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer scrollable>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={80}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 80}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>
@@ -211,6 +215,7 @@ const AgreementEditScreen: React.FC<Props> = ({ navigation, route }) => {
             value={personName}
             onChangeText={setPersonName}
             placeholder={strings.edit.namePlaceholder}
+            placeholderTextColor={theme.colors.textTertiary}
           />
           {errors.personName && <Text style={styles.errorText}>{errors.personName}</Text>}
 
@@ -222,21 +227,28 @@ const AgreementEditScreen: React.FC<Props> = ({ navigation, route }) => {
             onChangeText={setDescription}
             multiline
             placeholder={strings.edit.descriptionPlaceholder}
+            placeholderTextColor={theme.colors.textTertiary}
           />
           {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
 
           {/* Статус выполнения (автоматически; вручную — только отметка "Выполнено") */}
           <Text style={styles.label}>{strings.edit.statusLabel}</Text>
-          <View style={styles.statusRow}>
+          <View style={styles.statusCard}>
             <View style={styles.statusInfo}>
               <View style={[styles.statusDot, { backgroundColor: theme.colors.status[computedStatus] }]} />
-              <Text style={styles.statusText}>
-                {computedStatus === 'done' ? strings.status.done : computedStatus === 'broken' ? strings.status.broken : strings.status.pending}
-              </Text>
+              <View>
+                <Text style={styles.statusTitle}>
+                  {computedStatus === 'done' ? strings.status.done : computedStatus === 'broken' ? strings.status.broken : strings.status.pending}
+                </Text>
+                <Text style={styles.statusDescription}>
+                  {computedStatus === 'done' ? 'Договорённость выполнена' : computedStatus === 'broken' ? 'Срок истёк' : 'Ожидается выполнение'}
+                </Text>
+              </View>
             </View>
             <PrimaryButton
               title={isDone ? strings.edit.unmarkDone : strings.edit.markDone}
               onPress={() => setIsDone((v) => !v)}
+              variant={isDone ? 'secondary' : 'primary'}
               style={styles.markDoneButton}
             />
           </View>
@@ -244,7 +256,13 @@ const AgreementEditScreen: React.FC<Props> = ({ navigation, route }) => {
           {/* Срок: выбор даты через нативный календарь */}
           <Text style={styles.label}>{strings.edit.dueLabel}</Text>
           <View style={styles.datePickerRow}>
-            <Pressable style={styles.dateSelectButton} onPress={() => setShowPicker(true)}>
+            <Pressable 
+              style={({ pressed }) => [
+                styles.dateSelectButton,
+                pressed && styles.dateSelectButtonPressed,
+              ]} 
+              onPress={() => setShowPicker(true)}
+            >
               <Text style={styles.selectedDateText}>
                 {selectedDate
                   ? `${String(selectedDate.getDate()).padStart(2, '0')}.${String(
@@ -256,6 +274,7 @@ const AgreementEditScreen: React.FC<Props> = ({ navigation, route }) => {
             <Pressable
               style={[styles.clearDueButton, !selectedDate && { opacity: 0.5 }]}
               onPress={() => setSelectedDate(null)}
+              disabled={!selectedDate}
             >
               <Text style={styles.clearDueText}>{strings.edit.clear}</Text>
             </Pressable>
@@ -299,13 +318,15 @@ const AgreementEditScreen: React.FC<Props> = ({ navigation, route }) => {
                 title={strings.edit.remove}
                 onPress={handleDelete}
                 loading={saving}
-                style={[styles.button, styles.deleteButton]}
+                variant="danger"
+                style={styles.button}
               />
             )}
             <PrimaryButton
               title={strings.edit.cancel}
               onPress={handleCancel}
-              style={[styles.button, styles.cancelButton]}
+              variant="secondary"
+              style={styles.button}
             />
             <PrimaryButton
               title={strings.edit.save}
@@ -326,85 +347,105 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xl,
   },
   title: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: '700',
+    fontSize: theme.fontSize.xxl,
+    fontWeight: '800',
     marginBottom: theme.spacing.lg,
     color: theme.colors.text,
   },
   label: {
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
-    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    marginTop: theme.spacing.lg,
+    fontWeight: '600',
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
+    backgroundColor: theme.colors.cardBackground,
   },
   textArea: {
-    height: 100,
+    height: 120,
     textAlignVertical: 'top',
   },
   errorText: {
     color: theme.colors.status.broken,
     fontSize: theme.fontSize.sm,
     marginTop: theme.spacing.xs,
+    fontWeight: '500',
   },
   directionRow: {
     flexDirection: 'row',
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg,
     overflow: 'hidden',
+    gap: theme.spacing.md,
   },
   directionOption: {
     flex: 1,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.radius.md,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    ...theme.shadows.sm,
   },
   directionOptionSelected: {
     backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  directionOptionPressed: {
+    opacity: 0.8,
   },
   directionOptionText: {
     fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
+    fontWeight: '600',
   },
   directionOptionTextSelected: {
     color: '#FFFFFF',
-    fontWeight: '600',
   },
   datePickerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: theme.spacing.md,
   },
   dateSelectButton: {
-    borderWidth: 1,
+    flex: 1,
+    borderWidth: 1.5,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.cardBackground,
+    ...theme.shadows.sm,
+  },
+  dateSelectButtonPressed: {
+    opacity: 0.8,
   },
   selectedDateText: {
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
+    fontWeight: '500',
   },
   clearDueButton: {
-    marginLeft: theme.spacing.xs,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.primaryLight,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
   },
   clearDueText: {
-    color: theme.colors.textSecondary,
+    color: theme.colors.primary,
     fontSize: theme.fontSize.sm,
+    fontWeight: '600',
   },
   pickerOverlay: {
     ...Platform.select({
@@ -426,8 +467,8 @@ const styles = StyleSheet.create({
       ios: {
         width: '90%',
         backgroundColor: '#fff',
-        borderRadius: theme.radius.md,
-        padding: theme.spacing.md,
+        borderRadius: theme.radius.lg,
+        padding: theme.spacing.lg,
       },
       android: {},
     }),
@@ -435,53 +476,62 @@ const styles = StyleSheet.create({
   pickerActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+    gap: theme.spacing.md,
   },
   pickerActionButton: {
-    marginLeft: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
   },
   pickerActionText: {
     color: theme.colors.primary,
     fontSize: theme.fontSize.md,
+    fontWeight: '600',
   },
-  statusRow: {
+  statusCard: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    ...theme.shadows.sm,
   },
   statusInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: theme.spacing.xs,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: theme.spacing.md,
   },
-  statusText: {
+  statusTitle: {
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
-    marginRight: theme.spacing.sm,
+    fontWeight: '700',
+    marginBottom: theme.spacing.xs,
+  },
+  statusDescription: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
   },
   markDoneButton: {
+    marginLeft: theme.spacing.md,
     flexShrink: 0,
-    marginLeft: theme.spacing.sm,
   },
   buttonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: theme.spacing.xl,
+    marginTop: theme.spacing.xxl,
+    gap: theme.spacing.md,
   },
   button: {
     flex: 1,
-    marginHorizontal: theme.spacing.xs,
-  },
-  cancelButton: {
-    backgroundColor: theme.colors.border,
-  },
-  deleteButton: {
-    backgroundColor: theme.colors.status.broken,
   },
 });
 

@@ -5,6 +5,8 @@ export const strings = {
   list: {
     emptyAll: 'Пока нет договорённостей. Нажмите +, чтобы добавить первую.',
     emptyFiltered: 'Нет договорённостей в этом разделе.',
+    emptyTitle: 'Здесь ��удут ваши договорённости',
+    emptyAction: 'Добавить первую договорённость',
     error: 'Произошла ошибка при загрузке. Попробуйте повторить действие. Если не помогает — попробуйте очистить кэш приложения.',
     retry: 'Повторить',
     add: '+',
@@ -12,6 +14,25 @@ export const strings = {
       all: 'Все',
       promisedToMe: 'Мне пообещали',
       iPromised: 'Я пообещал',
+    },
+    selection: {
+      selectedCount: (n: number) => `${n} выбрано`,
+      selectAll: 'Выбрать все',
+      delete: 'Удалить',
+      confirmDeleteTitle: 'Удалить?',
+      confirmDeleteCancel: 'Отмена',
+      confirmDeleteOk: 'Удалить',
+      longPressMenu: {
+        edit: 'Редактировать',
+        delete: 'Удалить',
+        toggleDone: 'Завершить/Вернуть',
+        select: 'Выбрать',
+      },
+      swipe: {
+        complete: 'Завершить',
+        restore: 'Вернуть',
+        remove: 'Удалить',
+      },
     },
   },
   edit: {
