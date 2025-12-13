@@ -124,15 +124,17 @@ const AgreementsListScreen: React.FC<Props> = ({ navigation }) => {
         />
       )}
 
-      {/* Плавающая кнопка добавления новой договорённости */}
-      <PrimaryButton title={strings.list.add} onPress={handleAdd} style={styles.fab} />
+      {/* Нижняя панель действия: одна основная кнопка добавления */}
+      <View style={styles.bottomBar}>
+        <PrimaryButton title={strings.list.add} onPress={handleAdd} style={styles.bottomBarButton} />
+      </View>
     </ScreenContainer>
   );
 };
 
 const styles = StyleSheet.create({
   listContent: {
-    paddingBottom: 80,
+    paddingBottom: 140, // дополнительный отступ под нижнюю панель
   },
   center: {
     flex: 1,
@@ -159,28 +161,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   filterOptionSelected: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.cardBackground,
   },
   filterOptionText: {
     fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
   },
   filterOptionTextSelected: {
-    color: '#FFFFFF',
+    color: theme.colors.text,
     fontWeight: '600',
   },
   retryButton: {
     minWidth: 160,
   },
-  fab: {
+  bottomBar: {
     position: 'absolute',
-    right: theme.spacing.lg,
-    bottom: theme.spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  bottomBarButton: {
+    width: '100%',
   },
 });
 
